@@ -10,6 +10,7 @@ import Home from '../pages/Home/Home.jsx';
 import Login from '../pages/Auth/Login.jsx';
 import Register from '../pages/Auth/Register.jsx';
 import NotFound from '../pages/NotFound/NotFound.jsx';
+import ProfilePage from "../pages/Profile/Profilepages.jsx";
 
 const AppRoutes = () => {
   return (
@@ -24,6 +25,9 @@ const AppRoutes = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
       </Route>
+
+      {/* Profile Route */}
+      <Route path="/profile" element={<ProfilePage />} />
 
       {/* Fallback 404 Route */}
       <Route path="*" element={<NotFound />} />
