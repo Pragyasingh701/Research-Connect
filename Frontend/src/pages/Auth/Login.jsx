@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 import Input from '@/components/common/Input.jsx';
 import Button from '@/components/common/Button.jsx';
 import api from '@/services/api.js';
+import { useAuth } from '../../context/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isExpired = searchParams.get('expired') === 'true';
+  const { login, syncProfile } = useAuth();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -18,6 +20,56 @@ const Login = () => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState('');
+
+  // Handle Google Sign-in callback
+  const handleGoogleCallback = async (response) => {
+    setIsLoading(true);
+    setApiError('');
+    try {
+      const res = await api.post('/auth/google-login', {
+        idToken: response.credential
+      });
+
+      const { accessToken } = res.data;
+      localStorage.setItem('accessToken', accessToken);
+
+      // Populate user info globally
+      await syncProfile();
+      navigate('/dashboard');
+    } catch (err) {
+      setApiError(err.response?.data?.message || 'Google Sign-in failed. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // Load Google Identity Services script dynamically
+  useEffect(() => {
+    const initializeGoogle = () => {
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '959595325668-e5dlgoecao8lvo5k38plolvgv9ua2du1.apps.googleusercontent.com',
+          callback: handleGoogleCallback,
+        });
+
+        window.google.accounts.id.renderButton(
+          document.getElementById('google-signin-div'),
+          { theme: 'outline', size: 'large', width: '100%' }
+        );
+      }
+    };
+
+    if (!document.getElementById('google-gsi-script')) {
+      const script = document.createElement('script');
+      script.id = 'google-gsi-script';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = initializeGoogle;
+      document.body.appendChild(script);
+    } else {
+      initializeGoogle();
+    }
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -51,31 +103,17 @@ const Login = () => {
     setIsLoading(true);
     setApiError('');
 
-    try {
-      // Attempt backend signin
-      const response = await api.post('/users/login', formData);
-      if (response && response.success) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        navigate('/');
-      }
-    } catch (err) {
-      console.warn('⚠️ Backend login failed. Falling back to local offline sandbox mode...', err.message);
-      
-      // Local sandbox fallback for Phase 0 UI previewing
-      if (formData.email && formData.password) {
-        const mockUser = {
-          username: formData.email.split('@')[0],
-          email: formData.email,
-          role: 'researcher',
-        };
-        localStorage.setItem('token', 'mock_sandbox_jwt_token_key');
-        localStorage.setItem('user', JSON.stringify(mockUser));
-        navigate('/');
+    const result = await login(formData.email, formData.password);
+    
+    if (result.success) {
+      if (result.otpRequired) {
+        const devOtpParam = result.otpCode ? `&devOtp=${result.otpCode}` : '';
+        navigate(`/verify-otp?email=${encodeURIComponent(result.email)}&purpose=login${devOtpParam}`);
       } else {
-        setApiError(err.message || 'Authentication failed');
+        navigate('/dashboard');
       }
-    } finally {
+    } else {
+      setApiError(result.error || 'Authentication failed. Please check your credentials.');
       setIsLoading(false);
     }
   };
@@ -87,6 +125,17 @@ const Login = () => {
         <p className="text-xs text-[var(--color-brand-text-secondary)] mt-1">Sign in to coordinate and view research studies</p>
       </div>
 
+      {/* Google Authentication Container */}
+      <div className="w-full flex justify-center py-1">
+        <div id="google-signin-div" className="w-full"></div>
+      </div>
+
+      <div className="relative flex py-1 items-center">
+        <div className="flex-grow border-t border-slate-200/60"></div>
+        <span className="flex-shrink mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-wider">Or sign in with email</span>
+        <div className="flex-grow border-t border-slate-200/60"></div>
+      </div>
+
       {isExpired && (
         <div className="flex items-center gap-2 p-3 bg-[var(--color-brand-light-orange)] border border-amber-200 text-[var(--color-brand-orange)] rounded-xl text-xs">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -95,7 +144,7 @@ const Login = () => {
       )}
 
       {apiError && (
-        <div className="flex items-center gap-2 p-3 bg-[var(--color-brand-red)]/10 border border-[var(--color-brand-red)]/35 text-[var(--color-brand-red)] rounded-xl text-xs">
+        <div className="flex items-center gap-2 p-3 bg-[var(--color-brand-red)]/10 border border-[var(--color-brand-red)]/35 text-[var(--color-brand-red)] rounded-xl text-xs animate-shake">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{apiError}</span>
         </div>
@@ -133,11 +182,11 @@ const Login = () => {
         </div>
 
         <div className="flex items-center justify-between text-xs mt-1">
-          <label className="flex items-center gap-2 text-[var(--color-brand-text-secondary)] cursor-pointer">
+          <label className="flex items-center gap-2 text-[var(--color-brand-text-secondary)] cursor-pointer font-medium">
             <input type="checkbox" className="rounded bg-white border-[var(--color-brand-border)] text-[var(--color-brand-blue)] focus:ring-0 focus:ring-offset-0 cursor-pointer" />
             Remember me
           </label>
-          <a href="#" className="text-[var(--color-brand-blue)] hover:underline">Forgot password?</a>
+          <Link to="/forgot-password" className="text-[var(--color-brand-blue)] hover:underline font-semibold">Forgot password?</Link>
         </div>
 
         <Button type="submit" isLoading={isLoading} className="w-full mt-2">

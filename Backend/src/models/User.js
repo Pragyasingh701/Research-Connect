@@ -1,15 +1,19 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import fieldMetadataSchema from './fieldMetadataSchema.js';
 
 const userSchema = new mongoose.Schema(
   {
+    fullName: {
+      type: String,
+      required: [true, 'Please provide your full name'],
+      trim: true,
+    },
     username: {
       type: String,
-      required: [true, 'Please provide a username'],
-      unique: true,
       trim: true,
-      minlength: [3, 'Username must be at least 3 characters'],
-      maxlength: [30, 'Username cannot exceed 30 characters'],
+      unique: true,
+      sparse: true, // Allow null/undefined for users who register via Google
     },
     email: {
       type: String,
@@ -23,32 +27,69 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please provide a password'],
       minlength: [8, 'Password must be at least 8 characters'],
-      select: false, // Do not return password by default in queries
+      select: false,
     },
     role: {
       type: String,
       enum: ['researcher', 'admin', 'reviewer', 'sponsor'],
       default: 'researcher',
     },
-    isVerified: {
+    followersCount: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+    followingCount: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+    twoFactorEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    status: {
+      type: String,
+      enum: ['pending_verification', 'active', 'blocked', 'deleted'],
+      default: 'pending_verification',
+      index: true,
+    },
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    emailVerified: {
       type: Boolean,
       default: false,
     },
+    verificationToken: String,
+    resetPasswordToken: String,
+    resetPasswordExpire: Date,
+    lastLogin: Date,
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     passwordChangedAt: Date,
-    passwordResetToken: String,
-    passwordResetExpires: Date,
+    fieldMetadata: {
+      type: Map,
+      of: fieldMetadataSchema,
+      default: {},
+    },
   },
   {
     timestamps: true,
   }
 );
 
+// Indexes
+userSchema.index({ email: 1, isDeleted: 1 });
+
 // Hash password before saving
 userSchema.pre('save', async function (next) {
-  // Only run this function if password was actually modified
   if (!this.isModified('password')) return next();
-
-  // Hash the password with cost of 12
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
@@ -56,14 +97,24 @@ userSchema.pre('save', async function (next) {
 // Update passwordChangedAt property before saving
 userSchema.pre('save', function (next) {
   if (!this.isModified('password') || this.isNew) return next();
-
-  this.passwordChangedAt = Date.now() - 1000; // Subtract 1s so token is created after change
+  this.passwordChangedAt = Date.now() - 1000;
   next();
 });
 
-// Instance method to check if password is correct
+// Soft delete query middleware
+userSchema.pre(/^find/, function (next) {
+  this.find({ isDeleted: { $ne: true } });
+  next();
+});
+
+// Instance method to check if password is correct (legacy/compatibility)
 userSchema.methods.correctPassword = async function (candidatePassword, userPassword) {
   return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+// Instance method to compare password (modern)
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Instance method to check if password was changed after token issuance

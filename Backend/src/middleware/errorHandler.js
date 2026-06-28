@@ -4,12 +4,11 @@ const sendErrorDev = (err, res) => {
   res.status(err.statusCode).json({
     success: false,
     message: err.message,
-    data: null,
     error: {
       status: err.status,
       statusCode: err.statusCode,
-      error: err,
       stack: err.stack,
+      error: err,
     },
   });
 };
@@ -20,7 +19,6 @@ const sendErrorProd = (err, res) => {
     res.status(err.statusCode).json({
       success: false,
       message: err.message,
-      data: null,
       error: {
         status: err.status,
         statusCode: err.statusCode,
@@ -32,7 +30,6 @@ const sendErrorProd = (err, res) => {
     res.status(500).json({
       success: false,
       message: 'Something went wrong on the server',
-      data: null,
       error: {
         status: 'error',
         statusCode: 500,
@@ -40,6 +37,7 @@ const sendErrorProd = (err, res) => {
     });
   }
 };
+
 
 const handleCastErrorDB = (err) => {
   const message = `Invalid ${err.path}: ${err.value}.`;

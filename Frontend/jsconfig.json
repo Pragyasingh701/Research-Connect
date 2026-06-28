@@ -3,6 +3,7 @@
     "target": "ES6",
     "module": "commonjs",
     "allowSyntheticDefaultImports": true,
+
     "baseUrl": ".",
     "ignoreDeprecations": "6.0",
     "paths": {
@@ -10,4 +11,9 @@
     }
   },
   "exclude": ["node_modules", "dist"]
+
+    "paths": {
+      "@/*": ["src/*"]
+    }
+  }
 }

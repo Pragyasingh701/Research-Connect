@@ -2,39 +2,75 @@ import mongoose from 'mongoose';
 
 const collaborationSchema = new mongoose.Schema(
   {
-    project: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Project',
-      required: [true, 'Collaboration must belong to a project'],
+    title: {
+      type: String,
+      required: [true, 'Collaboration project title is required'],
+      trim: true,
     },
-    requester: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Collaboration requires a requester'],
+    researchArea: {
+      type: String,
+      required: [true, 'Research area is required'],
+      trim: true,
     },
-    receiver: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Collaboration requires a receiver'],
+    purpose: {
+      type: String,
+      required: [true, 'Purpose is required'],
+      trim: true,
     },
+    members: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+      },
+    ],
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'rejected'],
-      default: 'pending',
+      enum: ['Active', 'Completed', 'Paused'],
+      default: 'Active',
+      index: true,
     },
-    message: {
+    timeline: {
       type: String,
-      trim: true,
-      maxlength: [200, 'Message cannot exceed 200 characters'],
+      default: '',
     },
+    progress: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
+    files: [
+      {
+        name: { type: String, required: true },
+        url: { type: String, required: true },
+        uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+    messages: [
+      {
+        sender: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+        text: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    meetings: [
+      {
+        title: { type: String, required: true },
+        date: { type: Date, required: true },
+        link: { type: String, default: '' },
+        description: { type: String, default: '' },
+      },
+    ],
   },
   {
     timestamps: true,
   }
 );
 
-// Enforce unique request per user per project
-collaborationSchema.index({ project: 1, requester: 1, receiver: 1 }, { unique: true });
+// Index on members to quickly fetch collaborations a user is part of
+collaborationSchema.index({ members: 1 });
 
 const Collaboration = mongoose.model('Collaboration', collaborationSchema);
 export default Collaboration;

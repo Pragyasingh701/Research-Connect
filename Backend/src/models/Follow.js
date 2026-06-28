@@ -2,26 +2,29 @@ import mongoose from 'mongoose';
 
 const followSchema = new mongoose.Schema(
   {
-    follower: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Follower is required'],
-      index: true,
+    followerId: {
+       type: mongoose.Schema.Types.ObjectId,
+       ref: 'User',
+       required: [true, 'Follower user ID is required'],
     },
-    following: {
+    followingId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Following user is required'],
+      required: [true, 'Following user ID is required'],
       index: true,
     },
   },
   {
-    timestamps: true,
+    timestamps: { createdAt: true, updatedAt: false }, // Only store createdAt
+    collection: 'follows',
   }
 );
 
-// Enforce unique follow relationship
-followSchema.index({ follower: 1, following: 1 }, { unique: true });
+// Compound Unique Index to prevent duplicate follows
+followSchema.index({ followerId: 1, followingId: 1 }, { unique: true });
+
+// Index for sorting follows by date
+followSchema.index({ createdAt: -1 });
 
 const Follow = mongoose.model('Follow', followSchema);
 export default Follow;

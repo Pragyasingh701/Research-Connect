@@ -2,32 +2,33 @@ import mongoose from 'mongoose';
 
 const notificationSchema = new mongoose.Schema(
   {
-    recipient: {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Notification must belong to a recipient'],
+      required: [true, 'Notification must belong to a user'],
       index: true,
     },
     sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
-    type: {
-      type: String,
-      enum: ['follow', 'collaboration_request', 'message', 'system', 'event_invite'],
-      required: true,
-    },
     title: {
       type: String,
-      required: true,
+      required: [true, 'Notification must have a title'],
       trim: true,
     },
     message: {
       type: String,
-      required: true,
+      required: [true, 'Notification must have a message'],
       trim: true,
     },
-    isRead: {
+    type: {
+      type: String,
+      enum: ['Recommendation', 'Publication', 'Collaboration', 'System', 'Profile', 'Follow'],
+      required: true,
+      index: true,
+    },
+    read: {
       type: Boolean,
       default: false,
       index: true,
@@ -38,13 +39,16 @@ const notificationSchema = new mongoose.Schema(
     },
     onModel: {
       type: String,
-      enum: ['Publication', 'Project', 'Research', 'Community', 'Event'],
+      enum: ['Publication', 'Profile', 'CollaborationRequest', 'Follow'],
     },
   },
   {
     timestamps: true,
   }
 );
+
+// Compound Index: Optimizes loading a user's unread notifications in reverse chronological order
+notificationSchema.index({ user: 1, read: 1, createdAt: -1 });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 export default Notification;

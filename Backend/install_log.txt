@@ -1,0 +1,11 @@
+Starting installation with --legacy-peer-deps...
+Output:
+
+up to date, audited 322 packages in 1s
+
+124 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+✅ Success!
