@@ -76,9 +76,10 @@ export default function AcademicInfo({ info }) {
     { icon: "resgate",    label: "ResearchGate",     value: "View Profile", link: info.researchGateUrl },
     { icon: "linkedin",   label: "LinkedIn",         value: "View Profile", link: info.linkedInUrl },
     { icon: "researcher", label: "ResearcherID",     value: info.researcherId },
-    { icon: "globe",      label: "Website",          value: info.website,   link: info.website },
-    { icon: "github",     label: "GitHub",           value: info.github,    link: `https://${info.github}` },
-  ];
+    // ↓ optional — only shown if value exists
+    info.website && { icon: "globe",  label: "Website", value: info.website, link: info.website },
+    info.github  && { icon: "github", label: "GitHub",  value: info.github,  link: `https://${info.github}` },
+  ].filter(Boolean); // removes entries where value is empty/null/undefined
 
   const InfoRow = ({ icon, label, value, link }) => (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 12 }}>
